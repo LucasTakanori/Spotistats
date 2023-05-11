@@ -3,6 +3,13 @@ from bson.json_util import dumps
 from pymongo import MongoClient
 from bson import ObjectId
 
+def convert_ms_to_time(ms):
+    seconds = divmod(ms, 1000)
+    minutes = divmod(ms, 6000)
+    hours = divmod(ms, 36000)
+    return hours[0], minutes[0], seconds[0]
+
+
 app = Flask(__name__)
 
 MONGO_URI = "mongodb+srv://lucastakanorisanchez:Pito@cluster00.tvlt0bo.mongodb.net"
@@ -34,6 +41,29 @@ def get_users():
     print("Fetched users' data:", users)
     return users
 
+@app.route("/user/<user_id>/", methods=["GET"])
+def user_data(user_id):
+    client = MongoClient("mongodb+srv://lucastakanorisanchez:Pito@cluster00.tvlt0bo.mongodb.net/")
+    db = client["Spotistats"]
+    streaming_history = db["StreamingHistory"]
+
+    total_streams = streaming_history.count_documents({})
+    total_ms_played = streaming_history.aggregate([{"$group": {"_id": ObjectId(user_id), "total_msPlayed": {"$sum": "$msPlayed"}}}])
+    total_unique_tracks = len(streaming_history.distinct("trackName"))
+    total_unique_artists = len(streaming_history.distinct("artistName"))
+
+    ms = next(total_ms_played)["total_msPlayed"]
+    hours, minutes, seconds = convert_ms_to_time(ms)
+
+    return {
+        "total_streams": total_streams,
+        "total_time_played": f"{hours} hours, {minutes} minutes, {seconds} seconds",
+        "total_ms_played": ms,
+        "total_unique_tracks": total_unique_tracks,
+        "total_unique_artists": total_unique_artists
+    }
+
+
 
 @app.route("/user/<user_id>/playlists", methods=["GET"])
 def get_user_playlists(user_id):
@@ -42,7 +72,7 @@ def get_user_playlists(user_id):
     db = clients["Spotistats"]
 
     # Retrieve the user's playlists
-    playlists_cursor = db.Playlists.find({"user_id": ObjectId(user_id)})
+    playlists_cursor = db.Playlists.find({"id": ObjectId(user_id)})
     
     # Extract the playlist names and return them as JSON
     playlist_names = [playlist["name"] for playlist in playlists_cursor]
