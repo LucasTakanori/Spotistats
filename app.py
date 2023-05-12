@@ -1,7 +1,9 @@
-from flask import Flask
+import datetime
+from flask import Flask, jsonify, render_template
 from bson.json_util import dumps
 from pymongo import MongoClient
 from bson import ObjectId
+from datetime import datetime
 
 def convert_ms_to_time(ms):
     seconds = divmod(ms, 1000)
@@ -79,6 +81,114 @@ def get_user_playlists(user_id):
     playlists = dumps(playlist_names)
     return playlists
 
+@app.route("/user/<user_id>/top_songs_by_time_listened", methods=["GET"])
+def top_songs_by_time_listened(user_id, n_songs=20):
+    clients = MongoClient(MONGO_URI)
+    db = clients["Spotistats"]
+    streaming_history = db["StreamingHistory"]
+
+    time_listened_pipeline = [
+        {
+            "$match": {"id": ObjectId(user_id)}
+        },
+        {
+            "$group": {
+                "_id": {"artist": "$artistName", "track": "$trackName"},
+                "totalTimeListened": {"$sum": "$msPlayed"}
+            }
+        },
+        {
+            "$sort": {"totalTimeListened": -1}
+        },
+        {
+            "$limit": n_songs
+        }
+    ]
+
+    top_songs_by_time_listened = streaming_history.aggregate(time_listened_pipeline)
+
+    songs = []
+    for song_info in top_songs_by_time_listened:
+        artist_name = song_info["_id"]["artist"]
+        track_name = song_info["_id"]["track"]        
+        play_count = song_info["totalTimeListened"]
+        play_count, _ = divmod(play_count, 1000)
+        songs.append({"name": track_name, "artist": artist_name, "play_count": play_count})
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template("top_songs_for_time.html", songs=songs, user_id=user_id, n_songs=n_songs, timestamp=timestamp)
+
+
+
+@app.route("/user/<user_id>/top_artists", methods=["GET"])
+def get_most_artists(user_id,n_artists=20):
+    clients = MongoClient(MONGO_URI)
+    db = clients["Spotistats"]
+    streaming_history = db["StreamingHistory"]
+    artist_pipeline = [
+        {
+            "$match": {"id": ObjectId(user_id)}
+        },
+        {
+            "$group": {
+                "_id": "$artistName",
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$sort": {"count": -1}
+        },
+        {
+            "$limit": n_artists
+        }
+    ]
+
+    top_artists = streaming_history.aggregate(artist_pipeline)
+
+    
+    top_artists = [(artist_info["_id"], artist_info["count"]) for artist_info in streaming_history.aggregate(artist_pipeline)]
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template("top_artists.html", top_artists=top_artists, timestamp=timestamp, n_artists=n_artists)
+
+@app.route("/user/<user_id>/top_songs", methods=["GET"])
+def get_most_songs(user_id,n_songs=20):
+    clients = MongoClient(MONGO_URI)
+    db = clients["Spotistats"]
+    streaming_history = db["StreamingHistory"]
+    
+    song_pipeline = [
+    {
+        "$match": {"id": ObjectId(user_id)}
+    },
+    {
+        "$group": {
+            "_id": {"artist": "$artistName", "track": "$trackName"},
+            "count": {"$sum": 1}
+        }
+    },
+    {
+        "$sort": {"count": -1}
+    },
+    {
+        "$limit": n_songs
+    }
+    ]
+
+    top_songs = [
+        {
+            "artist": artist_info["_id"]["artist"],
+            "track": artist_info["_id"]["track"],
+            "count": artist_info["count"]
+        }
+        for artist_info in streaming_history.aggregate(song_pipeline)
+    ]
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template("top_songs.html", top_songs=top_songs, timestamp=timestamp, n_songs=n_songs)
 
 if __name__ == "__main__":
     app.run(debug=True)
