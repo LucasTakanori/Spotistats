@@ -1,0 +1,12 @@
+/* Fixed width and height */
+img.fixed-dimensions {
+    width: 300px;
+    height: 200px;
+  }
+  
+  /* Responsive dimensions */
+  img.responsive {
+    width: 100%;
+    height: auto;
+  }
+  
