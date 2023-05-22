@@ -4,16 +4,16 @@
     <title>Top {{ n_artists }} Most Listened Artists</title>
   </head>
   <body>
-    <h1>Top {{ n_artists }} Most Listened Artists</h1>
+    <h1>Top {{ n_artists }} Artists by Times Listened for User: {{ user_id }}</h1>
     <table>
       <tr>
         <th>Artist Name</th>
-        <th>Number of Plays</th>
+        <th>Time Listened in s</th>
       </tr>
-      {% for artist_name, count in top_artists %}
+      {% for artist in top_artists %}
         <tr>
-          <td>{{ artist_name }}</td>
-          <td>{{ count }}</td>
+          <td>{{ artist.name }}</td>
+          <td>{{ artist.plays }}</td>
         </tr>
       {% endfor %}
     </table>
