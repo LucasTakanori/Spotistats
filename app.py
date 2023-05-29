@@ -3,13 +3,14 @@ from flask import Flask, jsonify, render_template
 from datetime import datetime
 from spotifyHandler import SpotifyHandler
 from spotifyHandler import convert_ms_to_time
+from flask import render_template
+from flask import request, redirect, url_for
 import json
 
 app = Flask(__name__)
 
 MONGO_URI = "mongodb+srv://lucastakanorisanchez:Pito@cluster00.tvlt0bo.mongodb.net"
 handler = SpotifyHandler(mongo_uri=MONGO_URI)
-
 
 @app.route("/")
 def hello():
@@ -20,7 +21,6 @@ def get_users():
     users = handler.get_all_users()
     return jsonify(users)
 
-from flask import render_template
 @app.route("/user/<user_id>/", methods=["GET"])
 def get_user_data(user_id):
     user_data = handler.get_user_data(user_id)
@@ -88,7 +88,6 @@ def index():
 def user_data_form():
     return render_template('user_id_form.html')
 
-from flask import request, redirect, url_for
 
 @app.route('/submit_user_data_form', methods=['POST'])
 def submit_user_data_form():
